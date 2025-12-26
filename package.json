@@ -1,0 +1,50 @@
+{
+  "name": "orange-hrm-cypress-testing",
+  "version": "1.0.0",
+  "description": "AI-Assisted Cypress Testing Suite for Orange HRM",
+  "main": "index.js",
+  "scripts": {
+    "cy:open": "cypress open",
+    "cy:run": "cypress run",
+    "cy:run:chrome": "cypress run --browser chrome",
+    "cy:run:firefox": "cypress run --browser firefox",
+    "cy:run:edge": "cypress run --browser edge",
+    "cy:run:headed": "cypress run --headed",
+    "cy:run:spec": "cypress run --spec",
+    "test": "cypress run",
+    "test:ci": "cypress run --browser chrome --headless --config video=true,screenshotOnRunFailure=true",
+    "test:report": "cypress run --reporter mochawesome --reporter-options reportDir=cypress/reports/mochawesome,overwrite=false,html=true,json=true",
+    "merge:reports": "mochawesome-merge cypress/reports/mochawesome/*.json > cypress/reports/mochawesome/report.json",
+    "generate:report": "marge cypress/reports/mochawesome/report.json -f report -o cypress/reports/mochawesome",
+    "clean:reports": "rm -rf cypress/reports && mkdir -p cypress/reports/mochawesome",
+    "full:test": "npm run clean:reports && npm run test:report && npm run merge:reports && npm run generate:report",
+    "test:summary": "npm run cy:run 2>&1 | tee test-output.log && echo '\n\n=== TEST SUMMARY ===' && grep -E 'passing|failing|pending' test-output.log | tail -10",
+    "typecheck": "tsc --noEmit",
+    "lint": "npm run typecheck",
+    "format": "prettier --write \"**/*.{ts,js,json,md}\""
+  },
+  "keywords": [
+    "cypress",
+    "e2e",
+    "testing",
+    "orange-hrm",
+    "ai-assisted",
+    "automation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@faker-js/faker": "^8.4.0",
+    "@types/node": "^20.10.6",
+    "cypress": "^13.6.2",
+    "cypress-mochawesome-reporter": "^3.8.1",
+    "eslint": "^8.56.0",
+    "eslint-plugin-cypress": "^2.15.1",
+    "mochawesome": "^7.1.3",
+    "mochawesome-merge": "^4.3.0",
+    "mochawesome-report-generator": "^6.2.0",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {}
+}

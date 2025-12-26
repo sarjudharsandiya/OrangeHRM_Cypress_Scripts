@@ -1,0 +1,72 @@
+name: Scheduled Cypress Tests
+
+on:
+  schedule:
+    # Run every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  cypress-scheduled:
+    name: Scheduled E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Cypress tests
+        uses: cypress-io/github-action@v6
+        with:
+          browser: chrome
+          config: video=true,screenshotOnRunFailure=true
+
+      - name: Upload artifacts on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-scheduled-failure-${{ github.run_number }}
+          path: |
+            cypress/screenshots
+            cypress/videos
+            cypress/reports
+          retention-days: 14
+
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const title = `🔴 Scheduled Cypress Tests Failed - Run #${{ github.run_number }}`;
+            const body = `
+            ## Scheduled Test Failure
+            
+            **Run ID:** ${{ github.run_id }}
+            **Time:** ${new Date().toISOString()}
+            **Workflow:** ${{ github.workflow }}
+            
+            ### Details
+            The scheduled Cypress tests have failed. Please investigate.
+            
+            [View Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            ### Artifacts
+            Check the workflow artifacts for screenshots and videos.
+            `;
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['bug', 'automated-test-failure']
+            });

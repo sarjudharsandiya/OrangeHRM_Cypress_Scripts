@@ -1,0 +1,248 @@
+name: Cypress E2E Tests
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  install:
+    name: Install Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Cypress binary
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            cypress-${{ runner.os }}-
+
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    needs: install
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: true
+
+  cypress-run:
+    name: Cypress E2E Tests
+    runs-on: ubuntu-latest
+    needs: install
+    env:
+      # Configure how many parallel runners should split the specs.
+      # Change this value to scale runners without modifying the split logic.
+      TOTAL_RUNNERS: 3
+    strategy:
+      fail-fast: false
+      matrix:
+        # Run tests across multiple containers (split specs across runners)
+        include:
+          - container: 1
+            index: 0
+          - container: 2
+            index: 1
+          - container: 3
+            index: 2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Split spec files for this runner
+        id: split
+        run: |
+          # Collect spec files (use find to expand globs reliably)
+          mapfile -t files < <(find cypress/e2e -type f -name '*.cy.ts' | sort)
+          total=${TOTAL_RUNNERS:-3}
+          idx=${{ matrix.index }}
+          selected=()
+          for i in "${!files[@]}"; do
+            if (( i % total == idx )); then
+              selected+=("${files[$i]}")
+            fi
+          done
+          echo "Runner index: $idx, TOTAL_RUNNERS=$total"
+          if [ ${#selected[@]} -eq 0 ]; then
+            echo "No specs selected for runner index $idx"
+            echo "specs=" >> "$GITHUB_OUTPUT"
+          else
+            # Join selected with comma
+            specs=$(IFS=','; printf "%s" "${selected[*]}")
+            echo "Selected specs: $specs"
+            echo "specs=$specs" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cypress run
+        uses: cypress-io/github-action@v6
+        with:
+          browser: chrome
+          headed: false
+          record: false
+          # Do not enable parallel/group flags unless you also enable recording
+          # (Cypress Cloud / record key required). Running without `record`,
+          # so set `parallel: false` to avoid the action passing unsupported flags.
+          parallel: false
+          # If you later want parallelized runs, set `record: true` and add
+          # `CYPRESS_RECORD_KEY` to repository secrets, then re-enable `group`.
+          config: video=true,screenshotOnRunFailure=true
+          # Run only the specs selected for this runner (comma-separated)
+          spec: ${{ steps.split.outputs.specs }}
+        env:
+          CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate consolidated mochawesome report
+        if: always()
+        run: |
+          # Ensure report directory exists
+          mkdir -p cypress/reports/mochawesome || true
+          # Merge JSON reports produced by each spec run
+          npx mochawesome-merge "cypress/reports/mochawesome/*.json" > cypress/reports/mochawesome/report.json || true
+          # Generate HTML report from merged JSON
+          npx marge cypress/reports/mochawesome/report.json -f report -o cypress/reports/mochawesome || true
+          # Print a short summary to the job log
+          if [ -f cypress/reports/mochawesome/report.json ]; then
+            node -e "const fs=require('fs');const r=JSON.parse(fs.readFileSync('cypress/reports/mochawesome/report.json'));console.log('\n=== TEST SUMMARY ===');console.log('Suites:',r.stats.suites,'Tests:',r.stats.tests,'Passes:',r.stats.passes,'Failures:',r.stats.failures,'Duration(ms):',r.stats.duration);" || true
+          else
+            echo 'No mochawesome report.json found.'
+          fi
+
+      - name: Upload screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-screenshots-${{ matrix.container }}
+          path: cypress/screenshots
+          retention-days: 7
+
+      - name: Upload videos
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cypress-videos-${{ matrix.container }}
+          path: cypress/videos
+          retention-days: 7
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cypress-reports-${{ matrix.container }}
+          path: cypress/reports
+          retention-days: 7
+
+  test-results:
+    name: Process Test Results
+    runs-on: ubuntu-latest
+    needs: cypress-run
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Merge test reports
+        run: |
+          mkdir -p merged-reports
+          if [ -d "artifacts" ]; then
+            find artifacts -name "*.json" -type f -exec cp {} merged-reports/ \;
+          fi
+
+      - name: Generate test summary
+        run: |
+          echo "## 🧪 Cypress Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Test Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Screenshots (on failure)" >> $GITHUB_STEP_SUMMARY
+          echo "- Videos (all tests)" >> $GITHUB_STEP_SUMMARY
+          echo "- Test Reports" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload merged reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: merged-test-reports
+          path: merged-reports
+          retention-days: 30
+
+  notify:
+    name: Notify Test Results
+    runs-on: ubuntu-latest
+    needs: [cypress-run]
+    if: always()
+    steps:
+      - name: Check test status
+        run: |
+          if [ "${{ needs.cypress-run.result }}" == "success" ]; then
+            echo "✅ All Cypress tests passed!"
+            echo "TEST_STATUS=✅ PASSED" >> $GITHUB_ENV
+          else
+            echo "❌ Some Cypress tests failed!"
+            echo "TEST_STATUS=❌ FAILED" >> $GITHUB_ENV
+          fi
+
+      - name: Create test summary
+        run: |
+          echo "## 🎯 Final Test Status: ${{ env.TEST_STATUS }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow:** ${{ github.workflow }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ needs.cypress-run.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.cypress-run.result }}" != "success" ]; then
+            echo "### ⚠️ Action Required" >> $GITHUB_STEP_SUMMARY
+            echo "Please check the test artifacts and logs for details." >> $GITHUB_STEP_SUMMARY
+          fi

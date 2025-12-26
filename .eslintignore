@@ -1,0 +1,9 @@
+node_modules/
+cypress/videos/
+cypress/screenshots/
+cypress/reports/
+cypress/downloads/
+dist/
+build/
+*.config.ts
+cypress.config.ts

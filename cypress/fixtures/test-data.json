@@ -1,0 +1,29 @@
+{
+  "testUser": {
+    "username": "Admin",
+    "password": "admin123"
+  },
+  "testEmployee": {
+    "firstName": "John",
+    "lastName": "Doe",
+    "employeeId": "1234"
+  },
+  "leaveTypes": [
+    "CAN - Vacation",
+    "CAN - Sick",
+    "US - Vacation",
+    "US - Sick"
+  ],
+  "jobTitles": [
+    "Software Engineer",
+    "QA Engineer",
+    "HR Manager",
+    "Account Assistant"
+  ],
+  "departments": [
+    "Engineering",
+    "Human Resources",
+    "Finance",
+    "Sales & Marketing"
+  ]
+}
