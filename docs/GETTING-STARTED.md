@@ -30,7 +30,7 @@ git --version   # Should show v2+
 ### Step 1: Clone Repository
 
 ```bash
-cd ~/Documents/Learn/CP_PRJ
+cd ~/Documents/Learn/OrangeHRM_Cypress_Scripts
 # Repository is already set up in this directory
 ```
 
@@ -128,7 +128,7 @@ open cypress/reports/mochawesome/report.html
 ## 🗂️ Project Structure Overview
 
 ```
-CP_PRJ/
+OrangeHRM_Cypress_Scripts/
 ├── cypress/
 │   ├── e2e/                    # Test files
 │   │   ├── 01-auth/           # Authentication tests

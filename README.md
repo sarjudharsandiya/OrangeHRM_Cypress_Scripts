@@ -25,7 +25,7 @@ This project implements a comprehensive testing strategy for the [Orange HRM Dem
 ## 📁 Project Structure
 
 ```
-CP_PRJ/
+OrangeHRM_Cypress_Scripts/
 ├── .github/
 │   └── workflows/
 │       ├── cypress-tests.yml        # Main CI/CD workflow
@@ -76,7 +76,7 @@ CP_PRJ/
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd CP_PRJ
+   cd OrangeHRM_Cypress_Scripts
    ```
 
 2. **Install dependencies**

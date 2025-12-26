@@ -64,7 +64,7 @@ Your AI-assisted Cypress testing suite for Orange HRM is now ready!
 ### 1. Install Dependencies (Required)
 
 ```bash
-cd /Users/ztlab151/Documents/Learn/CP_PRJ
+cd /Users/ztlab151/Documents/Learn/OrangeHRM_Cypress_Scripts
 npm install
 ```
 
@@ -129,7 +129,7 @@ npm run cy:run:spec -- "cypress/e2e/01-auth/login.cy.ts"
 ### Project Structure
 
 ```
-CP_PRJ/
+OrangeHRM_Cypress_Scripts/
 ├── cypress/
 │   ├── e2e/              # Your test files ⭐
 │   ├── support/          # Custom commands & utilities
@@ -370,7 +370,7 @@ npm run cy:open
 ## 🚀 Ready to Start?
 
 ```bash
-cd /Users/ztlab151/Documents/Learn/CP_PRJ
+cd /Users/ztlab151/Documents/Learn/OrangeHRM_Cypress_Scripts
 npm install
 npm run cy:open
 ```

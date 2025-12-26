@@ -18,8 +18,8 @@
 ```bash
 # Fork the repository on GitHub
 # Then clone your fork
-git clone https://github.com/YOUR_USERNAME/CP_PRJ.git
-cd CP_PRJ
+git clone https://github.com/YOUR_USERNAME/OrangeHRM_Cypress_Scripts.git
+cd OrangeHRM_Cypress_Scripts
 ```
 
 ### 2. Install Dependencies
